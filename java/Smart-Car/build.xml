@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project name="salon" basedir="." default="build">
+    <!-- modules -->
+    <property name="module.server" value="server" />
+    <!-- end of modules -->
+
+    <!-- dirs -->
+    <property name="dist.dir" value="dist" />
+    <property name="build.dir" value="build" />
+    <property name="out.dir" value="${build.dir}/classes" />
+    <property name="lib.dir" value="lib" />
+    <!-- end of dirs -->
+
+    <!-- global variables -->
+    <path id="classpath">
+        <fileset dir="lib" includes="pi4j-core.jar,pi4j-device.jar,pi4j-gpio-extension.jar,pi4j-service.jar,log4j-1.2.17.jar" />
+    </path>
+    <property name="global.debug" value="true" />
+    <property name="source.version" value="1.6" />
+    <property name="target.version" value="1.6" />
+    <!-- end of global variables -->
+
+    <!-- common functional targets -->
+    <target name="init">
+        <mkdir dir="${build.dir}" />
+        <mkdir dir="${dist.dir}" />
+    </target>
+
+    <target name="clean" description="clean all built resources">
+        <delete dir="${build.dir}" />
+        <delete dir="${dist.dir}" />
+    </target>
+
+    <target name="compile" depends="init">
+        <property name="class.dir" value="${out.dir}/${module.name}" />
+        <mkdir dir="${class.dir}" />
+        <javac srcdir="${module.src}" destdir="${class.dir}" debug="${global.debug}" encoding="utf-8"
+               source="${source.version}" target="${target.version}">
+            <classpath refid="classpath" />
+        </javac>
+    </target>
+
+    <target name="archive-with-source" if="global.debug">
+        <antcall target="compile">
+            <param name="module.name" value="${archive.name}" />
+            <param name="module.src" value="${module.src}" />
+        </antcall>
+        <jar jarfile="${dist.dir}/${archive.name}.jar" basedir="${out.dir}/${archive.name}">
+            <fileset dir="${module.src}" includes="**" excludes="**/CVS, log4j.properties" />
+        </jar>
+    </target>
+
+    <target name="archive-without-source" unless="global.debug">
+        <antcall target="compile">
+            <param name="module.name" value="${archive.name}" />
+            <param name="module.src" value="${module.src}" />
+        </antcall>
+        <jar jarfile="${dist.dir}/${archive.name}.jar" basedir="${out.dir}/${archive.name}">
+            <fileset dir="${module.src}" excludes="**/*.java, **/CVS, log4j.properties" />
+        </jar>
+    </target>
+
+    <target name="archive">
+        <antcall target="archive-with-source">
+            <param name="module.name" value="${module.name}" />
+        </antcall>
+        <antcall target="archive-without-source">
+            <param name="module.name" value="${module.name}" />
+        </antcall>
+    </target>
+
+<!--
+    <target name="archive.war">
+        <property name="tmp.dir" value="${build.dir}/tmp" />
+        <mkdir dir="${tmp.dir}" />
+        <copy todir="${tmp.dir}">
+            <fileset dir="${lib.dir}" excludes="${exclude.list}, ${prefix}.data-*.jar, mina/**, servlet-api/**" />
+            <fileset dir="${dist.dir}" includes="*.jar" excludes="${exclude.list}, ${prefix}.data-*.jar, mina/**, servlet-api/**, **/CVS, *.war" />
+        </copy>
+        <mkdir dir="${build.dir}/war/classes" />
+        <copy todir="${build.dir}/war/classes">
+            <fileset dir="${web.root}/../src" includes="log4j.properties" />
+        </copy>
+        <war basedir="${web.root}" webxml="${web.root}/WEB-INF/web.xml" warfile="${dist.dir}/${archive.name}.war">
+            <lib dir="${tmp.dir}" />
+            <classes dir="${build.dir}/war/classes" />
+        </war>
+        <tar destfile="${dist.dir}/${archive.name}-static.tar.bz2"
+             basedir="${web.root}" includes="js/**, jquery/**, themes/**"
+             excludes="**/CVS" compression="bzip2">
+        </tar>
+        <delete dir="${tmp.dir}" />
+    </target>
+-->
+    <!-- common functional targets -->
+
+    <target name="car" description="compile and archive the module core into car.jar">
+        <antcall target="archive">
+            <param name="archive.name" value="car" />
+            <param name="module.src" value="${module.server}/src" />
+        </antcall>
+    </target>
+
+<!--
+    <target name="backend.war" depends="build.library" description="compile and archive all the module backend depends">
+        <antcall target="archive.war">
+            <param name="web.root" value="${module.server}/web" />
+            <param name="archive.name" value="backend" />
+        </antcall>
+    </target>
+-->
+
+    <target name="build.library" description="build all libraries">
+        <antcall target="car" />
+    </target>
+
+    <target name="build" depends="build.library" description="build all resources" />
+
+    <target name="rebuild" depends="clean, build" description="clean all built data, and rebuild all module"/>
+</project>
