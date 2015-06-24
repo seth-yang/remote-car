@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  Amarino - A prototyping software toolkit for Android and Arduino
+  Copyright (c) 2010 Bonifaz Kaufmann.  All right reserved.
+  
+  This application and its library is free software; you can redistribute
+  it and/or modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 3 of the License, or (at your option) any later version.
+
+  This library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public
+  License along with this library; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-->
+<resources>
+	<color name="background">#333333</color>
+	<color name="connected_on">#ff00ff00</color>
+	<color name="connected_off">#2000ff00</color>
+	<color name="disconnected_on">#ffff0000</color>
+	<color name="disconnected_off">#30ff0000</color>
+	<color name="light_gray_text">#CCCCCC</color>
+	<color name="light_yellowish_text">#BCBC99</color>
+	<color name="monitoring_btn_text">#999</color>
+	<color name="background_event_feedback">#22ffffcc</color>
+	<color name="background_graph">#767643</color>
+	<color name="background_screen">#111</color>
+	<drawable name="list_selector">#40aa40</drawable>
+	
+
+</resources>
