@@ -7,104 +7,18 @@ import java.util.Enumeration;
 import java.util.List;
 
 /**
- * Created by seth.yang on 2015/6/14.
+ * Created by seth.yang on 2015/6/14
  */
-public class RemoteCar implements BroadcastListener {
+public class RemoteCar {
     private InetAddress ip;
     private int controlPort, cameraPort;
 
-    private static final Object locker = new Object ();
+    private static final byte[] MAGIC = {
+            (byte) 0xca, (byte) 0xfe, (byte) 0xba, (byte) 0xbe,
+            'R', 'e', 'm', 'o', 't', 'e', '-', 'c', 'a', 'r' // Remote-car
+    };
 
     private RemoteCar () {}
-
-    public static RemoteCar find (int udpPort) throws IOException, InterruptedException {
-        List<InetAddress> list = getFirstNetworkInterface ();
-        List<BroadcastCaller> futures = new ArrayList<BroadcastCaller> ();
-        RemoteCar car = new RemoteCar ();
-        int port;
-        for (InetAddress address : list) {
-            port = (int) (Math.random () * 10000 + 50000);
-            BroadcastCaller caller = new BroadcastCaller (port, address, car);
-            futures.add (caller);
-            caller.start ();
-            broadcast (port, udpPort, address);
-        }
-
-        synchronized (locker) {
-            locker.wait (30000);
-        }
-        for (BroadcastCaller task : futures) {
-            task.abort ();
-        }
-
-        if (car.ip != null)
-            return car;
-        return null;
-    }
-
-    public static List<InetAddress> getFirstNetworkInterface () throws SocketException {
-        Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces ();
-        List<InetAddress> ret = new ArrayList<InetAddress> ();
-        while (e.hasMoreElements ()) {
-            NetworkInterface ni = e.nextElement ();
-            if (!ni.isUp ()) continue;
-            if (ni.isLoopback ()) continue;
-            byte[] mac = ni.getHardwareAddress ();
-            if (mac == null) continue;
-            if (ni.isPointToPoint ()) continue;
-            List<InterfaceAddress> list = ni.getInterfaceAddresses ();
-            if (list == null || list.isEmpty ()) continue;
-
-            for (InterfaceAddress ia : list) {
-                InetAddress address = ia.getAddress ();
-                if (address instanceof Inet4Address) {
-                    ret.add (address);
-                }
-            }
-        }
-        return ret;
-    }
-
-    private static void broadcast (int port, int udpPort, InetAddress address) throws IOException {
-        System.out.println ("broadcast to " + address + ":" + udpPort);
-        byte[] ip = new byte[4];
-        ip [0] = (byte) ((port >> 24) & 0xff);
-        ip [1] = (byte) ((port >> 16) & 0xff);
-        ip [2] = (byte) ((port >> 8) & 0xff);
-        ip [3] = (byte) (port & 0xff);
-
-        InetAddress remote = InetAddress.getByName ("255.255.255.255");
-        DatagramSocket client = new DatagramSocket ((int) (Math.random () * 1000 + 40000), address);
-        DatagramPacket packet = new DatagramPacket (ip, 4, remote, udpPort);
-        client.send (packet);
-        client.close ();
-    }
-
-    @Override
-    public void onReceive (byte[] data) {
-        byte[] buff = new byte[4];
-        System.arraycopy (data, 0, buff, 0, 4);
-
-        try {
-            ip = InetAddress.getByAddress (buff);
-            System.out.println ("remote address is: " + ip);
-        } catch (UnknownHostException e) {
-            e.printStackTrace ();
-            throw new RuntimeException (e);
-        }
-
-        System.arraycopy (data, 4, buff, 0, 4);
-        controlPort = byte2Int (buff);
-        System.out.println ("control port: " + controlPort);
-
-        System.arraycopy (data, 8, buff, 0, 4);
-        cameraPort = byte2Int (buff);
-        System.out.println ("camera port: " + cameraPort);
-
-        synchronized (locker) {
-            locker.notifyAll ();
-        }
-    }
 
     public InetAddress getIp () {
         return ip;
@@ -118,11 +32,30 @@ public class RemoteCar implements BroadcastListener {
         return cameraPort;
     }
 
-    private int byte2Int (byte[] buff) {
-        return  ((buff [0] & 0xff) << 24) |
-                ((buff [1] & 0xff) << 16) |
-                ((buff [2] & 0xff) <<  8) |
-                (buff [3] & 0xff);
+    public static RemoteCar find (int port) throws IOException {
+        InetAddress target = InetAddress.getByName ("255.255.255.255");
+        byte[] buff = new byte[12];  // magic(4) + tcp_port(4) + camera_port(4)
+        DatagramPacket received = new DatagramPacket (buff, buff.length);
+        DatagramPacket packet   = new DatagramPacket (MAGIC, MAGIC.length, target, port);
+        DatagramSocket socket   = new DatagramSocket ();
+        socket.setSoTimeout (60000); // time-out in 60 seconds
+        socket.send (packet);
+        socket.receive (received);   // waiting for the remote-car response
+        // there, we got peer's response
+        // or catch the IOException that thrown
+        int magic  = readInt (buff, 0);
+        int tcp    = readInt (buff, 4);
+        int camera = readInt (buff, 8);
+
+        System.out.println (received.getSocketAddress ());
+        SocketAddress sa = received.getSocketAddress ();
+        System.out.println (sa.getClass ());
+
+        RemoteCar car   = new RemoteCar ();
+        car.cameraPort  = camera;
+        car.controlPort = tcp;
+        car.ip          = received.getAddress ();
+        return car;
     }
 
     @Override
@@ -137,5 +70,12 @@ public class RemoteCar implements BroadcastListener {
         } else {
             System.out.println ("Can't find remote car");
         }
+    }
+
+    private static int readInt (byte[] data, int offset) {
+        return  ((data [offset ++] & 0xff) << 24) |
+                ((data [offset ++] & 0xff) << 16) |
+                ((data [offset ++] & 0xff) <<  8) |
+                ((data [offset   ] & 0xff));
     }
 }

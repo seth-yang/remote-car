@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by seth.yang on 2015/6/9.
+ * Created by seth.yang on 2015/6/9
  */
 public class TestClient extends JFrame implements ActionListener {
     private JButton btnForward;

@@ -3,11 +3,10 @@ package org.dreamwork.smart.car.server.io;
 import org.apache.log4j.Logger;
 import org.dreamwork.smart.car.server.util.Config;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.*;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Created with IntelliJ IDEA.
@@ -17,54 +16,67 @@ import java.util.concurrent.Executors;
  */
 public class BroadcastService implements Runnable {
     private boolean running = true;
+    private DatagramSocket server;
+    private ExecutorService executor;
+
     private static final Logger logger = Logger.getLogger (BroadcastService.class);
 
-    private int udpPort;
+    private static final int MAX = 32;
+    private static final int RESPONSE_LENGTH = 12;           // 4 bytes header + 4 bytes tcp port + 4 bytes camera port
+    private static final byte[] MAGIC = {
+            (byte) 0xca, (byte) 0xfe, (byte) 0xba, (byte) 0xbe,
+            'R', 'e', 'm', 'o', 't', 'e', '-', 'c', 'a', 'r' // Remote-car
+    };
 
-    public BroadcastService (int udpPort) {
-        this.udpPort = udpPort;
+    private int port;
+
+    public BroadcastService (int port, ExecutorService executor) {
+        this.port     = port;
+        this.executor = executor;
     }
 
     public void bind () throws IOException {
-        new Thread (this).start ();
+        executor.execute (this);
     }
 
     public synchronized void shutdown () {
+        if (server != null) {
+            server.close ();
+        }
+        server  = null;
         running = false;
     }
 
     @Override
     public void run () {
+        Thread.currentThread ().setName ("BroadcastService");
         try {
-            DatagramSocket server = new DatagramSocket (udpPort);
-            ExecutorService executor = Executors.newFixedThreadPool (10);
+            server = new DatagramSocket (port);
             logger.info ("--------------------------------------------");
-            logger.info (" Server listen on " + server.getLocalAddress () + ":" + udpPort);
+            logger.info (" Broadcast Server listen on " + server.getLocalAddress () + ":" + port);
             logger.info ("--------------------------------------------");
+
             while (running) {
-                DatagramPacket packet = new DatagramPacket (new byte[4], 4);
                 if (logger.isDebugEnabled ())
                     logger.debug ("waiting for message ... ");
+                DatagramPacket packet = new DatagramPacket (new byte[MAX], MAX);
                 server.receive (packet);
                 if (logger.isDebugEnabled ())
                     logger.debug ("get a message !");
-                Worker worker = new Worker (packet);
-                executor.execute (worker);
 
-                synchronized (this) {
-                    if (!running)
-                        break;
-                }
+                executor.execute (new Worker (packet));
             }
         } catch (Exception ex) {
             ex.printStackTrace ();
+        } finally {
+            if (server != null) server.close ();
         }
     }
 
     private static class Worker implements Runnable {
         private DatagramPacket packet;
 
-        public Worker (DatagramPacket packet) {
+        Worker (DatagramPacket packet) {
             this.packet = packet;
         }
 
@@ -76,40 +88,47 @@ public class BroadcastService implements Runnable {
             SocketAddress sa = packet.getSocketAddress ();
             InetAddress address = packet.getAddress ();
             byte[] data = packet.getData ();
-            int remotePort = ((data [0] & 0xff) << 24) + ((data [1] & 0xff) << 16) +
-                    ((data [2] & 0xff) <<  8) +  (data [3] & 0xff);
-
-            Config config = Config.getInstance ();
-            int controlPort = config.getIntValue (Config.CAR_REMOTE_PORT, -1);
-            int cameraPort = config.getIntValue (Config.CAMERA_PORT, -1);
-/*
-            byte[] buff = new byte[4];
-            buff [0] = (byte) ((port >> 24) & 0xff);
-            buff [1] = (byte) ((port >> 16) & 0xff);
-            buff [2] = (byte) ((port >>  8) & 0xff);
-            buff [3] = (byte) (port & 0xff);
-*/
-
-            if (logger.isDebugEnabled ()) {
-                logger.debug ("control port : " + controlPort);
-                logger.debug ("camera port : " + cameraPort);
-                logger.debug ("socket address: " + sa);
-                logger.debug ("inet address: " + address.getHostAddress ());
+            int offset  = packet.getOffset ();
+            int length  = packet.getLength ();
+            {
+                if (length != data.length) {
+                    byte[] tmp = new byte[length];
+                    System.arraycopy (data, offset, tmp, 0, length);
+                    data = tmp;
+                }
             }
-            Socket socket = null;
-            try {
-                socket = new Socket (address, remotePort);
-                OutputStream out = socket.getOutputStream ();
-                out.write (int2Bytes (controlPort));
-                out.write (int2Bytes (cameraPort));
-                out.flush ();
-            } catch (Exception ex) {
-                throw new RuntimeException (ex);
-            } finally {
-                if (socket != null) try {
-                    socket.close ();
+
+            if (Arrays.equals (data, MAGIC)) {
+                if (logger.isDebugEnabled ()) {
+                    logger.debug ("we got a valid request");
+                    logger.debug ("sending the control port and camera port to peer.");
+                }
+
+                DatagramSocket socket = null;
+                try {
+                    Config config = Config.getInstance ();
+                    int controlPort = config.getIntValue (Config.CAR_REMOTE_PORT, -1);
+                    int cameraPort = config.getIntValue (Config.CAMERA_PORT, -1);
+                    if (logger.isDebugEnabled ()) {
+                        logger.debug ("control port : " + controlPort);
+                        logger.debug ("camera port : " + cameraPort);
+                        logger.debug ("socket address: " + sa);
+                        logger.debug ("inet address: " + address.getHostAddress ());
+                    }
+
+                    socket = new DatagramSocket ();
+                    byte[] buff = new byte[RESPONSE_LENGTH];
+                    System.arraycopy (int2Bytes (0xcafebabe),  0, buff, 0, 4);
+                    System.arraycopy (int2Bytes (controlPort), 0, buff, 4, 4);
+                    System.arraycopy (int2Bytes (cameraPort),  0, buff, 8, 4);
+                    packet = new DatagramPacket (buff, 0, RESPONSE_LENGTH, sa);
+                    socket.send (packet);
                 } catch (IOException ex) {
                     logger.warn (ex.getMessage (), ex);
+                } finally {
+                    if (socket != null) {
+                        socket.close ();
+                    }
                 }
             }
         }
