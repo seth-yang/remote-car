@@ -169,7 +169,7 @@ public class TestClient extends JFrame implements ActionListener {
                             return;
                         }
                     }
-                    socket = new Socket (car.getIp (), 18000);
+                    socket = new Socket (car.getIp (), car.getControlPort ());
                     out = socket.getOutputStream ();
                     txtStatus.setText ("connected: " + car.getIp ().getHostAddress ());
                     setButtonStatus (true);
