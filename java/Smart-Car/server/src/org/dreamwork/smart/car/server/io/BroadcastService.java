@@ -3,7 +3,7 @@ package org.dreamwork.smart.car.server.io;
 import org.apache.log4j.Logger;
 import org.dreamwork.smart.car.server.util.Config;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.*;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
@@ -17,7 +17,7 @@ import java.util.concurrent.ExecutorService;
 public class BroadcastService implements Runnable {
     private boolean running = true;
     private DatagramSocket server;
-    private ExecutorService executor;
+    private final ExecutorService executor;
 
     private static final Logger logger = Logger.getLogger (BroadcastService.class);
 
@@ -28,7 +28,7 @@ public class BroadcastService implements Runnable {
             'R', 'e', 'm', 'o', 't', 'e', '-', 'c', 'a', 'r' // Remote-car
     };
 
-    private int port;
+    private final int port;
 
     public BroadcastService (int port, ExecutorService executor) {
         this.port     = port;
@@ -50,17 +50,22 @@ public class BroadcastService implements Runnable {
     @Override
     public void run () {
         Thread.currentThread ().setName ("BroadcastService");
-        try {
-            server = new DatagramSocket (port);
-            logger.info ("--------------------------------------------");
-            logger.info (" Broadcast Server listen on " + server.getLocalAddress () + ":" + port);
-            logger.info ("--------------------------------------------");
+        try (MulticastSocket socket = new MulticastSocket ()) {
+            socket.setTimeToLive (32);
+            SocketAddress addr = new InetSocketAddress ("224.0.0.1", port);
+            NetworkUtil.getAllNetworkInterfaces ().forEach (ni -> {
+                try {
+                    socket.joinGroup (addr, ni);
+                } catch (IOException e) {
+                    throw new RuntimeException (e);
+                }
+            });
 
             while (running) {
                 if (logger.isDebugEnabled ())
                     logger.debug ("waiting for message ... ");
                 DatagramPacket packet = new DatagramPacket (new byte[MAX], MAX);
-                server.receive (packet);
+                socket.receive (packet);
                 if (logger.isDebugEnabled ())
                     logger.debug ("get a message !");
 
@@ -68,8 +73,6 @@ public class BroadcastService implements Runnable {
             }
         } catch (Exception ex) {
             ex.printStackTrace ();
-        } finally {
-            if (server != null) server.close ();
         }
     }
 

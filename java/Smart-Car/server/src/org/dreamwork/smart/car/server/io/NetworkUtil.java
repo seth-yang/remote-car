@@ -65,6 +65,21 @@ public class NetworkUtil {
         return ret;
     }
 
+    public static List<NetworkInterface> getAllNetworkInterfaces () throws SocketException {
+        Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces ();
+        List<NetworkInterface> list = new ArrayList<> ();
+        while (e.hasMoreElements ()) {
+            NetworkInterface ni = e.nextElement ();
+            if (!ni.isUp () || ni.isLoopback ()) continue;
+
+            byte[] mac = ni.getHardwareAddress ();
+            if (mac == null || ni.isPointToPoint ()) continue;
+
+            list.add (ni);
+        }
+        return list;
+    }
+
     public static String getHostIp () {
         if (ip == null) {
             try {

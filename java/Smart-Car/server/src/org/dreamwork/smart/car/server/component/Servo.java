@@ -15,7 +15,7 @@ import java.util.List;
  * Created by seth.yang on 2015/6/8.
  */
 public class Servo extends PWM implements TimeoutListener {
-    public static enum Direction {
+    public enum Direction {
         INCREMENT, DECREMENT
     }
 
@@ -33,10 +33,10 @@ public class Servo extends PWM implements TimeoutListener {
 
     private Direction dir = Direction.INCREMENT;
 
-    private PausableThread worker;
-    private TimeoutMonitor monitor;
+    private final PausableThread worker;
+    private final TimeoutMonitor monitor;
 
-    private List<ServoListener> list = new ArrayList<ServoListener> ();
+    private final List<ServoListener> list = new ArrayList<> ();
 
     public Servo (int pin) throws IOException {
         this (pin, -90, 90);
@@ -60,7 +60,7 @@ public class Servo extends PWM implements TimeoutListener {
                         offset (delta);
                         sleep (interval);
                     } catch (InterruptedException ex) {
-                        ex.printStackTrace ();
+                        logger.warn (ex.getMessage (), ex);
                     }
                 }
             }

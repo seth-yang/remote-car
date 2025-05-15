@@ -26,7 +26,7 @@ public class Car implements ServoListener {
     private Servo servo0, servo1;
     private Motor left_front, /*left_back, */right_front/*, right_back*/;
     private Camera camera;
-    private Config config;
+    private final Config config;
     private GpioPinDigitalOutput led;
     private GpioController gpio;
     private boolean shutdown = false;

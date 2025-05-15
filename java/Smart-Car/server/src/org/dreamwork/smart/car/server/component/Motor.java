@@ -7,8 +7,9 @@ import org.dreamwork.smart.car.server.util.GpioHelper;
  * Created by seth.yang on 2015/6/8.
  */
 public class Motor {
-    private GpioPinDigitalOutput pin0, pin1;
-    private PWM pwm;
+    private final GpioPinDigitalOutput pin0;
+    private final GpioPinDigitalOutput pin1;
+    private final PWM pwm;
     private int speed = 3;
 
     public static final int MAX_SPEED = 5, MIN_SPEED = 0;

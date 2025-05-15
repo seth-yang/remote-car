@@ -10,7 +10,7 @@ import org.dreamwork.smart.car.server.util.PausableThread;
  */
 public class BlinkLED extends PausableThread {
     private static final Logger logger = Logger.getLogger (BlinkLED.class);
-    private GpioPinDigitalOutput pin;
+    private final GpioPinDigitalOutput pin;
 
     public BlinkLED (int pinIndex) {
         super (true);

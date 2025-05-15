@@ -6,9 +6,9 @@ import java.net.Socket;
 
 public class Server implements Runnable {
     private ServerSocket server;
-    private String name;
-    private int port;
-    private ProcessorFactory factory;
+    private final String name;
+    private final int port;
+    private final ProcessorFactory factory;
 
     public Server (String name, int port, ProcessorFactory factory) {
         this.name = name;

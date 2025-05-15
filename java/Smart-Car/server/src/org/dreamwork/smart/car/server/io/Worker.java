@@ -9,8 +9,8 @@ import java.io.InputStream;
 import java.net.Socket;
 
 public class Worker implements Runnable {
-    private Socket socket;
-    private Car car;
+    private final Socket socket;
+    private final Car car;
 
 //    private static final byte[] OK = {0, 0, 0, 0};
 

@@ -47,7 +47,7 @@ public class Config {
     };
 
     private static final Logger logger = Logger.getLogger (Config.class);
-    private static Config instance = new Config ();
+    private static final Config instance = new Config ();
 
     private Config () {
     }
